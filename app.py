@@ -145,11 +145,14 @@ if st.session_state.page == 1:
     
     # Check if user selected more than 2 SDGs
     if len(selected_sdgs) > 2:
-        st.error("⚠️ Please select exactly 2 SDGs. You have selected too many.")
+        st.error("⚠️ Please select up to 2 SDGs. You have selected too many.")
         st.session_state.selected_sdgs = []
-    elif len(selected_sdgs) == 2:
+    elif 1 <= len(selected_sdgs) <= 2:
         st.session_state.selected_sdgs = selected_sdgs
-        st.success(f"✅ Selected SDGs: {selected_sdgs[0]} and {selected_sdgs[1]}")
+        if len(selected_sdgs) == 2:
+            st.success(f"✅ Selected SDGs: {selected_sdgs[0]} and {selected_sdgs[1]}")
+        elif len(selected_sdgs) == 1:
+            st.success(f"✅ Selected SDG: {selected_sdgs[0]}")
         
         if st.button("🚀 Generate Ideas", type="primary"):
             if generate_sdg_ideas_json is not None:
@@ -171,12 +174,8 @@ if st.session_state.page == 1:
             else:
                 st.error("❌ Idea generation module not available. Please check imports.")
             st.rerun()
-            
-    elif len(selected_sdgs) == 1:
-        st.info("📋 Please select one more SDG to proceed.")
-        st.session_state.selected_sdgs = []
     else:
-        st.info("📋 Please select 2 SDGs to get started.")
+        st.info("📋 Please select at least 1 SDG to get started.")
         st.session_state.selected_sdgs = []
     
     if st.session_state.generated_ideas:
@@ -606,9 +605,24 @@ elif st.session_state.page == 5:
         if st.button("evaluate market fit", type="secondary", use_container_width=True):
             with st.spinner("Evaluating market fit..."):
                 try:
-                    logging.info("Evaluating market fit feedback...")
+                    from evaluate_marketfit import evaluate_market_fit_with_groq
+                    marketfit_text = st.session_state.get('marketfit', '')
+                    if not marketfit_text.strip():
+                        st.warning("Please enter your market fit analysis before evaluation.")
+                    else:
+                        result = evaluate_market_fit_with_groq(marketfit_text)
+                        logging.info(f"market fot evaluation result {result}")
+                        st.session_state['market_fit_evaluation'] = result
+                        st.success("Market fit evaluation completed!")
+                except ImportError as e:
+                    st.error(f"Could not import market fit evaluation: {str(e)}")
                 except Exception as e:
-                    st.error(f"Error generating market fit feedback: {str(e)}")
+                    st.error(f"Error generating market fit evaluation: {str(e)}")
+
+            # Show evaluation result in expander if available
+            if st.session_state.get('market_fit_evaluation'):
+                with st.expander("📊 View Market Fit Evaluation", expanded=True):
+                    st.json(st.session_state['market_fit_evaluation'])
     
     # Navigation buttons
     st.divider()
@@ -915,36 +929,66 @@ elif st.session_state.page == 6:
                         try:
                             # Try to import and use evaluation function
                             try:
-                                from validate_student_description import evaluate_prototype_description
-                                
-                                evaluation_result = evaluate_prototype_description(
-                                    idea=st.session_state.selected_idea,
-                                    problem_statement=st.session_state.get('problem_statement', ''),
-                                    prototype_description=st.session_state.get('prototype_description', ''),
-                                    selected_sdgs=st.session_state.get('selected_sdgs', [])
-                                )
-                                
-                                logging.info("Prototype description evaluation completed.")
-                                logging.info(f"Evaluation result: {evaluation_result}")
-                                # Store evaluation results
-                                st.session_state.prototype_evaluation = evaluation_result
-                                st.session_state.evaluation_completed = True
-                                
-                                st.success("✅ Prototype evaluation completed!")
-                                
+                                from evaluate_ptototype_description import create_balanced_classifier
                             except ImportError:
-                                # Fallback: Create mock evaluation data
                                 st.warning("⚠️ Evaluation module not found. Using mock evaluation...")
-                                
-                                
+                                st.session_state.prototype_evaluation = {
+                                    "success": True,
+                                    "x_axis_category": "HIGH",
+                                    "y_axis_category": "TRIPLE",
+                                    "error": None,
+                                    "processing_time": 0.1,
+                                    "tokens_used": 100,
+                                    "model_used": "mock-model",
+                                    "raw_response": "Mock evaluation response.",
+                                }
+                            else:
+                                # Get API key from env or Streamlit secrets
+                                api_key = os.getenv("GROQ_API_KEY")
+                                if not api_key:
+                                    try:
+                                        api_key = st.secrets.get("GROQ_API_KEY")
+                                    except Exception:
+                                        api_key = None
+                                classifier = create_balanced_classifier(api_key=api_key)
+                                idea_text = st.session_state.get('selected_idea', '')
+                                prototype_description = st.session_state.get('prototype_description', '')
+                                try:
+                                    result = classifier.classify_sync(idea_text, prototype_description)
+                                    st.session_state.prototype_evaluation = {
+                                        "success": getattr(result, 'success', True),
+                                        "x_axis_category": getattr(result, 'x_axis_category', None),
+                                        "y_axis_category": getattr(result, 'y_axis_category', None),
+                                        "error": getattr(result, 'error', None),
+                                        "processing_time": getattr(result, 'processing_time', None),
+                                        "tokens_used": getattr(result, 'tokens_used', None),
+                                        "model_used": getattr(result, 'model_used', None),
+                                        "raw_response": getattr(result, 'raw_response', None),
+                                    }
+                                    st.success("✅ Prototype evaluation completed!")
+                                except Exception as e:
+                                    st.error(f"❌ Evaluation error: {str(e)}")
+                                    logging.error(f"Prototype evaluation error: {str(e)}")
+                                    st.session_state.prototype_evaluation = {"success": False, "error": str(e)}
+
                         except Exception as e:
                             st.error(f"❌ Evaluation error: {str(e)}")
                             logging.error(f"Prototype evaluation error: {str(e)}")
-                    
-                    # Rerun to show evaluation results
-                    st.rerun()
             
-            
+            # Show evaluation result in expander if available
+            if st.session_state.get("prototype_evaluation"):
+                with st.expander("📋 View Prototype Evaluation", expanded=True):
+                    eval_data = st.session_state["prototype_evaluation"]
+                    if eval_data.get("success"):
+                        # st.write(f"**Quality (X-Axis):** {eval_data.get('x_axis_category')}")
+                        # st.write(f"**Content (Y-Axis):** {eval_data.get('y_axis_category')}")
+                        # st.write(f"**Model Used:** {eval_data.get('model_used')}")
+                        # st.write(f"**Processing Time:** {eval_data.get('processing_time')}s")
+                        # st.write(f"**Tokens Used:** {eval_data.get('tokens_used')}")
+                        # st.write("**Response:**")
+                        st.code(str(eval_data.get("raw_response")), language="json")
+                    else:
+                        st.error(f"Evaluation failed: {eval_data.get('error')}")
             
             # Action buttons
             st.divider()

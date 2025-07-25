@@ -45,7 +45,6 @@ you are speaking to the student , so never use "the student's response".
 9. Relevant to the Idea – Does the content stay focused on the idea and its value?
 10. Info is Well-Structured and Easy to Understand – Is the writing organized and clear?
 
-assign a score from 1 to 10 for each point, where 1 is poor and 10 is excellent. Provide specific feedback for each point, including suggestions for improvement if necessary.
 
 Return the feedback in a numbered format.
 """

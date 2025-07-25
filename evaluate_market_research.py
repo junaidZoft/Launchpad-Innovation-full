@@ -1,5 +1,5 @@
 import os
-from groq import Groq
+from openai import OpenAI
 from dotenv import load_dotenv
 import json
 
@@ -7,10 +7,10 @@ import json
 load_dotenv()
 
 # Get API key
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-# Initialize Groq client
-client = Groq(api_key=GROQ_API_KEY)
+# Initialize OpenAI client
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 # rubrics.py
 
@@ -124,7 +124,7 @@ Return only valid JSON in this **strict format**:
 
 def categorize_market_research(input_text: str) -> dict:
     """
-    Categorize a market research statement using Groq API.
+    Categorize a market research statement using OpenAI GPT-4.1.
     
     Args:
         input_text (str): The market research statement to categorize
@@ -132,19 +132,25 @@ def categorize_market_research(input_text: str) -> dict:
     Returns:
         dict: JSON response containing x_category and y_category
     """
-    if not GROQ_API_KEY:
-        raise ValueError("GROQ_API_KEY not set. Please set it in your .env file or environment.")
+    if not OPENAI_API_KEY:
+        raise ValueError("OPENAI_API_KEY not set. Please set it in your .env file or environment.")
 
     if not input_text.strip():
         raise ValueError("Please enter a valid input text.")
 
     try:
         response = client.chat.completions.create(
-            model="llama3-8b-8192",
+            model="gpt-4.1",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": input_text}
-            ]
+            ],
+            temperature=0.2,
+            max_tokens=150,
+            top_p=1,
+            frequency_penalty=0,
+            presence_penalty=0,
+            response_format={ "type": "json_object" }
         )
         output = response.choices[0].message.content
         return json.loads(output)

@@ -3,7 +3,7 @@ import json
 from typing import Dict, Any
 from dotenv import load_dotenv
 from tavily import TavilyClient
-from groq import Groq
+from openai import OpenAI
 import logging
 
 #configure logging
@@ -31,11 +31,11 @@ def check_input_consistency(
         Consistency check result as string
     """
     try:
-        GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-        if not GROQ_API_KEY:
-            return "Error: Missing GROQ_API_KEY environment variable. Please check your .env file."
+        OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+        if not OPENAI_API_KEY:
+            return "Error: Missing OPENAI_API_KEY environment variable. Please check your .env file."
         
-        groq_client = Groq(api_key=GROQ_API_KEY)
+        openai_client = OpenAI(api_key=OPENAI_API_KEY)
         
         consistency_prompt = f"""You're analyzing a business idea for consistency. Check if these inputs align well:
 
@@ -50,11 +50,13 @@ Respond with ONLY one of these formats:
 
 Keep response under 50 words."""
 
-        response = groq_client.chat.completions.create(
+        response = openai_client.chat.completions.create(
             messages=[{"role": "user", "content": consistency_prompt}],
-            model="llama-3.1-8b-instant",
+            model="gpt-4.1",
             temperature=0.3,
-            max_tokens=100
+            max_tokens=100,
+            presence_penalty=0.1,
+            frequency_penalty=0.1
         )
         
         return response.choices[0].message.content.strip()
@@ -84,16 +86,16 @@ def conduct_market_research(
     try:
         # Get API keys from environment variables (loaded from .env)
         TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
-        GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+        OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
         
-        if not TAVILY_API_KEY or not GROQ_API_KEY:
+        if not TAVILY_API_KEY or not OPENAI_API_KEY:
             return {
-                "error": "Missing required API keys. Please ensure TAVILY_API_KEY and GROQ_API_KEY are set in your .env file.",
-                "instructions": "Create a .env file with:\nTAVILY_API_KEY=your_tavily_key_here\nGROQ_API_KEY=your_groq_key_here"
+                "error": "Missing required API keys. Please ensure TAVILY_API_KEY and OPENAI_API_KEY are set in your .env file.",
+                "instructions": "Create a .env file with:\nTAVILY_API_KEY=your_tavily_key_here\nOPENAI_API_KEY=your_openai_key_here"
             }
         
         tavily = TavilyClient(api_key=TAVILY_API_KEY)
-        groq_client = Groq(api_key=GROQ_API_KEY)
+        openai_client = OpenAI(api_key=OPENAI_API_KEY)
         
         # Perform web search
         search_query = f"market trends competitors analysis {target_market} {idea}"
@@ -160,11 +162,13 @@ Identify 2-3 potential market risks and mitigation strategies.
 
 Use data from the web search to support your analysis. Keep it professional and comprehensive, around 600-800 words total."""
 
-        response = groq_client.chat.completions.create(
+        response = openai_client.chat.completions.create(
             messages=[{"role": "user", "content": market_prompt}],
-            model="llama-3.1-8b-instant",
+            model="gpt-4.1",
             temperature=0.5,
-            max_tokens=1000
+            max_tokens=1000,
+            presence_penalty=0.1,
+            frequency_penalty=0.1
         )
         
         return {
@@ -220,7 +224,7 @@ def verify_env_setup() -> Dict[str, bool]:
     Returns:
         Dictionary showing status of each required environment variable
     """
-    required_vars = ["TAVILY_API_KEY", "GROQ_API_KEY"]
+    required_vars = ["TAVILY_API_KEY", "OPENAI_API_KEY"]
     status = {}
     
     for var in required_vars:

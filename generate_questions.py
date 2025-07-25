@@ -1,5 +1,5 @@
 import os
-from groq import Groq
+from openai import OpenAI
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -7,7 +7,7 @@ load_dotenv()
 
 def generate_survey_questions(idea, problem_statement, sdgs):
     """
-    Generate 5 Yes/No survey questions using Groq API for business idea validation.
+    Generate 5 Yes/No survey questions using OpenAI API for business idea validation.
     
     Args:
         idea (str): The business idea description
@@ -18,13 +18,13 @@ def generate_survey_questions(idea, problem_statement, sdgs):
         list: List of 5 Yes/No survey questions as strings
     """
     
-    # Load Groq API key from environment variables
-    groq_api_key = os.getenv('GROQ_API_KEY')
+    # Load OpenAI API key from environment variables
+    openai_api_key = os.getenv('OPENAI_API_KEY')
     
-    if not groq_api_key:
-        raise ValueError("GROQ_API_KEY not found in environment variables. Please add it to your .env file.")
+    if not openai_api_key:
+        raise ValueError("OPENAI_API_KEY not found in environment variables. Please add it to your .env file.")
     
-    client = Groq(api_key=groq_api_key)
+    client = OpenAI(api_key=openai_api_key)
     
     # Handle SDGs input (convert list to string if needed)
     if isinstance(sdgs, list):
@@ -58,7 +58,7 @@ Only return the 5 questions as a numbered list with no title, no intro.
 Each question should be on a new line starting with a number."""
 
     try:
-        # Make API call to Groq
+        # Make API call to OpenAI
         chat_completion = client.chat.completions.create(
             messages=[
                 {
@@ -66,9 +66,12 @@ Each question should be on a new line starting with a number."""
                     "content": prompt
                 }
             ],
-            model="llama3-8b-8192",  # You can change this to other Groq models like "mixtral-8x7b-32768"
+            model="gpt-4.1",
             temperature=0.7,
-            max_tokens=500
+            max_tokens=500,
+            top_p=0.9,
+            presence_penalty=0.1,
+            frequency_penalty=0.1
         )
         
         # Extract and clean the response
@@ -113,7 +116,7 @@ Each question should be on a new line starting with a number."""
         return questions
         
     except Exception as e:
-        raise Exception(f"Error generating questions with Groq API: {str(e)}")
+        raise Exception(f"Error generating questions with OpenAI API: {str(e)}")
 
 
 # Example usage
@@ -123,7 +126,7 @@ if __name__ == "__main__":
     sample_problem = "Many children struggle with making healthy food choices and lack knowledge about nutrition"
     sample_sdgs = ["Good Health and Well-being", "Quality Education"]
     
-    # Note: Make sure to create a .env file with GROQ_API_KEY=your_api_key_here
+    # Note: Make sure to create a .env file with OPENAI_API_KEY=your_api_key_here
     
     try:
         questions = generate_survey_questions(

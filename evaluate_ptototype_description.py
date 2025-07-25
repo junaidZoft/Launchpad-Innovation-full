@@ -20,11 +20,11 @@ import aiohttp
 from contextlib import asynccontextmanager
 
 try:
-    from groq import Groq, AsyncGroq
+    from openai import OpenAI, AsyncOpenAI
 except ImportError as e:
     raise ImportError(
-        "Groq library not found. "
-        "Install with: pip install groq python-dotenv aiohttp"
+        "OpenAI library not found. "
+        "Install with: pip install openai python-dotenv aiohttp"
     ) from e
 
 try:
@@ -98,12 +98,9 @@ class OptimizedProblemStatementClassifier:
     - Async/await support throughout
     """
     
-    # Available Groq models (optimized for speed)
+    # Available OpenAI models (optimized for this use case)
     FAST_MODELS = [
-        "llama3-70b-8192",      # Fastest, high quality
-        "llama3-8b-8192",       # Very fast, good quality
-        "mixtral-8x7b-32768",   # Good balance
-        "gemma-7b-it",          # Lightweight
+        "gpt-4.1",    # Only available model
     ]
     
     def __init__(
@@ -119,7 +116,7 @@ class OptimizedProblemStatementClassifier:
         max_concurrent: int = 10  # For batch processing
     ):
         """Initialize the optimized classifier."""
-        self.api_key = api_key or os.getenv("GROQ_API_KEY")
+        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         self.model_name = model_name
         self.max_retries = max_retries
         self.timeout = timeout
@@ -138,9 +135,9 @@ class OptimizedProblemStatementClassifier:
         # Validate configuration
         self._validate_configuration()
         
-        # Initialize Groq clients
-        self.client = Groq(api_key=self.api_key)
-        self.async_client = AsyncGroq(api_key=self.api_key)
+        # Initialize OpenAI clients
+        self.client = OpenAI(api_key=self.api_key)
+        self.async_client = AsyncOpenAI(api_key=self.api_key)
         
         # Initialize cache with TTL
         self._cache = {}
@@ -168,7 +165,7 @@ class OptimizedProblemStatementClassifier:
         """Validate configuration parameters."""
         if not self.api_key:
             raise ConfigurationError(
-                "GROQ_API_KEY not found. Set it as an environment variable or pass it directly."
+                "OPENAI_API_KEY not found. Set it as an environment variable or pass it directly."
             )
         
         if len(self.api_key.strip()) < 10:
@@ -187,10 +184,10 @@ class OptimizedProblemStatementClassifier:
     def _get_optimized_prompt(self) -> str:
         """Get the optimized system prompt (cached)."""
         return '''
-You are a specialized Assessment Agent designed to evaluate problem statements written by students aged 14-16 years, focusing on United Nations Sustainable Development Goals (SDGs). Your primary function is to provide consistent, objective analysis that remains stable across multiple evaluations of the same content.
+You are a specialized Assessment Agent designed to evaluate prototype descriptions written by students aged 14-16 years, focusing on United Nations Sustainable Development Goals (SDGs). Your primary function is to provide consistent, objective analysis that remains stable across multiple evaluations of the same content.
 
 ## Core Mission
-Analyze student-written problem statements with precision and consistency, ensuring that repeated assessments of identical content yield identical results. Your evaluation must be thorough, fair, and appropriate for the developmental level of teenage students. The provided IDEA will help you assess whether the problem statement is relevant and well-aligned with the intended solution concept.
+Analyze student-written prototype descriptions with precision and consistency, ensuring that repeated assessments of identical content yield identical results. Your evaluation must be thorough, fair, and appropriate for the developmental level of teenage students. The provided IDEA will help you assess whether the prototype description is relevant and well-aligned with the intended solution concept.
 
 ## Assessment Framework
 You must classify each problem statement using TWO dimensions:
@@ -341,40 +338,43 @@ Pay special attention to:
 ### Y-AXIS CATEGORIES (Content Elements)
 
 **Single Elements:**
-- "Contains Data Only"
-- "References Included Only"
-- "Location/Area Clear Only"
-- "Target Audience Clearly Stated Only"
-- "Impact Described Only"
+- "Clear Product/Service Description"
+- "Prototype Status"
+- "Unique Value Statement"
+- "User Interaction Description"
+- "Technical/Practical Feasibility Evidence"
 
 **Two Element Combinations:**
-- "Contains Data + References Included"
-- "Contains Data + Location/Area Clear"
-- "Contains Data + Target Audience Clearly Stated"
-- "Contains Data + Impact Described"
-- "References Included + Location/Area Clear"
-- "References Included + Target Audience Clearly Stated"
-- "References Included + Impact Described"
-- "Location/Area Clear + Target Audience Clearly Stated"
-- "Location/Area Clear + Impact Described"
-- "Target Audience Clearly Stated + Impact Described"
+- "Product Description + Prototype"
+- "Product Description + Unique Value"
+- "Product Description + User Interaction"
+- "Product Description + Feasibility Evidence"
+- "Prototype + Unique Value"
+- "Prototype + User Interaction"
+- "Prototype + Feasibility Evidence"
+- "Unique Value + User Interaction"
+- "Unique Value + Feasibility Evidence"
+- "User Interaction + Feasibility Evidence"
 
 **Three Element Combinations:**
-- "Contains Data + References Included + Location/Area Clear"
-- "Contains Data + References Included + Target Audience Clearly Stated"
-- "Contains Data + References Included + Impact Described"
-- "Contains Data + Location/Area Clear + Target Audience Clearly Stated"
-- "Contains Data + Location/Area Clear + Impact Described"
-- "Contains Data + Target Audience Clearly Stated + Impact Described"
-- "References Included + Location/Area Clear + Target Audience Clearly Stated"
-- "References Included + Location/Area Clear + Impact Described"
-- "References Included + Target Audience Clearly Stated + Impact Described"
+- "Product Description + Prototype + Unique Value"
+- "Product Description + Prototype + User Interaction"
+- "Product Description + Prototype + Feasibility Evidence"
+- "Product Description + Unique Value + User Interaction"
+- "Product Description + Unique Value + Feasibility Evidence"
+- "Product Description + User Interaction + Feasibility Evidence"
+- "Prototype + Unique Value + User Interaction"
+- "Prototype + Unique Value + Feasibility Evidence"
+- "Prototype + User Interaction + Feasibility Evidence"
+- "Unique Value + User Interaction + Feasibility Evidence"
 
 **Four and Five Element Combinations:**
-- "Contains Data + References Included + Location/Area Clear + Target Audience Clearly Stated"
-- "Contains Data + References Included + Location/Area Clear + Impact Described"
-- "Contains Data + References Included + Target Audience Clearly Stated + Impact Described"
-- "Contains Data + References Included + Location/Area Clear + Target Audience Clearly Stated + Impact Described"
+- "Product Description + Prototype + Unique Value + User Interaction"
+- "Product Description + Prototype + Unique Value + Feasibility Evidence"
+- "Product Description + Prototype + User Interaction + Feasibility Evidence"
+- "Product Description + Unique Value + User Interaction + Feasibility Evidence"
+- "Prototype + Unique Value + User Interaction + Feasibility Evidence"
+- "Clear Product/Service Description + Prototype Status + Unique Value Statement + User Interaction Description + Technical/Practical Feasibility Evidence"
 
 **Exceptional case:**
 - "not Relevant content to the Idea"
@@ -394,20 +394,20 @@ Carefully assess the problem statement's quality and content elements. Pay speci
 Provide ONLY the JSON output with the two required categories.
 '''
     
-    def _validate_inputs(self, idea_text: str, problem_statement_text: str) -> None:
+    def _validate_inputs(self, idea_text: str, prototype_description_text: str) -> None:
         """Validate input parameters with optimized checks."""
         if not idea_text or not isinstance(idea_text, str) or len(idea_text.strip()) < 10:
             raise ValidationError("idea_text must be a non-empty string with at least 10 characters")
         
-        if not problem_statement_text or not isinstance(problem_statement_text, str) or len(problem_statement_text.strip()) < 20:
-            raise ValidationError("problem_statement_text must be a non-empty string with at least 20 characters")
+        if not prototype_description_text or not isinstance(prototype_description_text, str) or len(prototype_description_text.strip()) < 20:
+            raise ValidationError("prototype_description_text must be a non-empty string with at least 20 characters")
         
         # Quick length checks
         if len(idea_text) > 3000:
             raise ValidationError("idea_text exceeds maximum length of 3000 characters")
         
-        if len(problem_statement_text) > 8000:
-            raise ValidationError("problem_statement_text exceeds maximum length of 8000 characters")
+        if len(prototype_description_text) > 8000:
+            raise ValidationError("prototype_description_text exceeds maximum length of 8000 characters")
     
     def _sanitize_text(self, text: str) -> str:
         """Fast text sanitization."""
@@ -546,19 +546,19 @@ Provide ONLY the JSON output with the two required categories.
         except Exception as e:
             raise APIError(f"Groq API call failed: {str(e)}")
     
-    async def classify_async(self, idea_text: str, problem_statement_text: str) -> ClassificationResult:
+    async def classify_async(self, idea_text: str, prototype_description_text: str) -> ClassificationResult:
         """Async classification method for maximum speed."""
         start_time = time.time()
         self.metrics['total_requests'] += 1
         
         try:
             # Fast validation and sanitization
-            self._validate_inputs(idea_text, problem_statement_text)
+            self._validate_inputs(idea_text, prototype_description_text)
             idea_text = self._sanitize_text(idea_text)
-            problem_statement_text = self._sanitize_text(problem_statement_text)
+            prototype_description_text = self._sanitize_text(prototype_description_text)
             
             # Check cache
-            cache_key = self._create_cache_key(idea_text, problem_statement_text)
+            cache_key = self._create_cache_key(idea_text, prototype_description_text)
             cached_result = self._get_cached_result(cache_key)
             if cached_result:
                 return cached_result
@@ -566,7 +566,7 @@ Provide ONLY the JSON output with the two required categories.
             # Build optimized prompt
             prompt = self._get_optimized_prompt().format(
                 idea_text=idea_text,
-                problem_statement_text=problem_statement_text
+                problem_statement_text=prototype_description_text
             )
             
             # Make API call with retries
@@ -626,14 +626,14 @@ Provide ONLY the JSON output with the two required categories.
                 processing_time=processing_time
             )
     
-    def classify_sync(self, idea_text: str, problem_statement_text: str) -> ClassificationResult:
+    def classify_sync(self, idea_text: str, prototype_description_text: str) -> ClassificationResult:
         """Synchronous classification method."""
-        return asyncio.run(self.classify_async(idea_text, problem_statement_text))
+        return asyncio.run(self.classify_async(idea_text, prototype_description_text))
     
     # Alias for backwards compatibility
-    def classify_problem_statement(self, idea_text: str, problem_statement_text: str) -> ClassificationResult:
+    def classify_prototype_description(self, idea_text: str, prototype_description_text: str) -> ClassificationResult:
         """Main classification method (backwards compatible)."""
-        return self.classify_sync(idea_text, problem_statement_text)
+        return self.classify_sync(idea_text, prototype_description_text)
     
     async def classify_batch_async(self, requests: List[Tuple[str, str]]) -> List[ClassificationResult]:
         """High-speed batch classification."""
@@ -725,9 +725,9 @@ Provide ONLY the JSON output with the two required categories.
 
 # Factory functions
 def create_fast_classifier(api_key: Optional[str] = None, **kwargs) -> OptimizedProblemStatementClassifier:
-    """Create a classifier optimized for speed."""
+    """Create a classifier."""
     defaults = {
-        'model_name': 'llama3-8b-8192',  # Fastest model
+        'model_name': 'gpt-4.1',  # Only available model
         'max_retries': 2,
         'timeout': 10.0,
         'cache_size': 512,
@@ -738,9 +738,9 @@ def create_fast_classifier(api_key: Optional[str] = None, **kwargs) -> Optimized
 
 
 def create_balanced_classifier(api_key: Optional[str] = None, **kwargs) -> OptimizedProblemStatementClassifier:
-    """Create a classifier with balanced speed and quality."""
+    """Create a classifier with standard settings."""
     defaults = {
-        'model_name': 'llama3-70b-8192',  # Good balance
+        'model_name': 'gpt-4.1',  # Only available model
         'max_retries': 2,
         'timeout': 15.0,
         'cache_size': 256,
@@ -754,15 +754,30 @@ def create_balanced_classifier(api_key: Optional[str] = None, **kwargs) -> Optim
 SAMPLE_DATA = [
     {
         'idea': 'Smart Water Management System: IoT-enabled sensors and mobile app for monitoring water quality and usage in rural communities, promoting SDG 6 (Clean Water and Sanitation).',
-        'problem': 'Water scarcity in rural Maharashtra affects over 2.5 million people according to state government data from 2023. Villages like Ahmednagar face daily water shortages during summer months (April-June), forcing women and children to walk 3-5 kilometers daily to collect water. This impacts school attendance rates, which drop by 35% during peak summer, particularly affecting girls aged 10-14. Without proper monitoring systems, existing bore wells often run dry or produce contaminated water, leading to waterborne diseases that affect approximately 40% of households annually.'
+        'prototype': 'Our prototype consists of a network of IoT sensors powered by solar panels, connected to a central hub via LoRaWAN technology. Each sensor unit includes: 1) Water quality sensors measuring pH, turbidity, and contamination levels, 2) Water level sensors for wells and storage tanks, 3) Flow rate meters for usage tracking. The mobile app, developed using Flutter for cross-platform compatibility, features real-time monitoring, automated alerts, and historical data visualization. We\'ve completed the sensor hardware assembly and initial calibration, with successful transmission tests achieving 95% reliability within a 5km range. The app\'s beta version demonstrates key functionalities including user authentication, sensor data display, and customizable alerts. Current prototype cost: $150 per sensor unit.'
     },
     {
         'idea': 'Community Recycling Hub: Local waste sorting and recycling center using AI-powered sorting technology to promote circular economy and SDG 12 (Responsible Consumption).',
-        'problem': 'Urban waste management crisis in Delhi generates 11,000 tons of waste daily but only processes 61% effectively. Most residential areas lack proper segregation systems, leading to 85% mixed waste that ends up in landfills. This creates methane emissions equivalent to 2.3 million tons CO2 annually and affects air quality for 30 million residents. Local recyclers struggle with contaminated materials, reducing recycling efficiency to just 12% compared to global averages of 35%.'
+        'prototype': 'The prototype recycling system uses computer vision and machine learning to automatically sort waste materials. Core components include: 1) A conveyor belt system with adjustable speed control, 2) High-resolution cameras for material detection, 3) Custom-trained TensorFlow model achieving 89% accuracy in identifying 6 material categories. The sorting mechanism uses pneumatic actuators for material separation. We\'ve built a scaled model (1:5) that processes 20kg/hour. The AI model runs on a Raspberry Pi 4, connected to a touchscreen interface for system control. Initial tests show 85% sorting accuracy for plastic types and 92% for metal/glass separation. User interface allows manual override and system monitoring. Estimated full-scale cost: $5000 per unit.'
     },
     {
         'idea': 'Digital Learning Platform for Girls: Mobile education app providing STEM courses in local languages to promote girls\' education and SDG 4 (Quality Education).',
-        'problem': 'Gender disparity in STEM education affects millions of girls globally, with only 35% of STEM higher education students being female according to UNESCO data.'
+        'prototype': 'Our educational app prototype features an offline-first architecture using React Native. Key features include: 1) Interactive STEM lessons in Hindi, Marathi, and English, 2) Gamified learning modules with progress tracking, 3) Peer-to-peer collaboration tools. Content includes 15 physics lessons and 10 coding tutorials, developed with local teachers. Beta testing with 50 students shows 90% engagement rate and average session time of 45 minutes. The app uses minimal data (20MB initial download) and works on low-end Android devices (Android 6.0+). Current prototype includes user authentication, progress tracking, and basic analytics dashboard for teachers. All video content is downloadable for offline access.'
+    },
+    # Irrelevant prototype description test case
+    {
+        'idea': 'Smart Water Management System: IoT-enabled sensors and mobile app for monitoring water quality and usage in rural communities.',
+        'prototype': 'Our cryptocurrency trading platform uses blockchain technology to enable secure transactions. Features include real-time price tracking, automated trading bots, and wallet management. The platform is built using Node.js and React, with smart contracts implemented in Solidity. Current prototype demonstrates successful test transactions on the Ethereum testnet.'
+    },
+    # Nonsensical test case
+    {
+        'idea': 'Community Recycling Hub: Local waste sorting and recycling center using AI-powered sorting technology.',
+        'prototype': 'xkcd123 test prototype random text generator system with undefined parameters and nonexistent technology claims without any technical specifications or actual implementation details randomized output no clear structure or meaning.'
+    },
+    # Mixed valid/invalid test case
+    {
+        'idea': 'Digital Learning Platform for Girls: Mobile education app for STEM education.',
+        'prototype': 'The app uses React Native framework 123abc unclear implementation details random text insertion but includes actual features like offline content access and progress tracking kjahsdkjas more random text mobile responsive design with cross-platform compatibility additional nonsense text teacher dashboard with analytics.'
     }
 ]
 
@@ -803,7 +818,7 @@ async def run_comprehensive_test():
     print(f"\n📦 Test 2: Batch Classification ({len(SAMPLE_DATA)} samples)")
     print("-" * 50)
     
-    batch_requests = [(sample['idea'], sample['problem']) for sample in SAMPLE_DATA]
+    batch_requests = [(sample['idea'], sample['prototype']) for sample in SAMPLE_DATA]
     batch_start = time.time()
     
     batch_results = await classifier.classify_batch_async(batch_requests)
@@ -862,8 +877,8 @@ def sync_test():
         classifier = create_fast_classifier()
         
         # Quick sync test
-        sample = SAMPLE_DATA[0]
-        result = classifier.classify_sync(sample['idea'], sample['problem'])
+        sample = SAMPLE_DATA[1]
+        result = classifier.classify_sync(sample['idea'], sample['prototype'])
         
         if result.success:
             print("✅ Sync test passed!")

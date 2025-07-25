@@ -1,30 +1,30 @@
-from groq import Groq  
+from openai import OpenAI
 import os
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
 
-def get_market_fit_feedback(marketfit, groq_api_key=None):
+def get_market_fit_feedback(marketfit, openai_api_key=None):
     """
-    Evaluates a student's market fit response using Groq API.
-    pip
+    Evaluates a student's market fit response using OpenAI API.
+
     Args:
         marketfit (str): Student's response about their business idea's market fit
-        groq_api_key (str, optional): Your Groq API key. If not provided, will load from GROQ_API_KEY environment variable
+        openai_api_key (str, optional): Your OpenAI API key. If not provided, will load from OPENAI_API_KEY environment variable
     
     Returns:
         str: Detailed feedback based on the 10-point rubric
     """
     
     # Get API key from parameter or environment variable
-    if groq_api_key is None:
-        groq_api_key = os.getenv('GROQ_API_KEY')
-        if not groq_api_key:
-            return "Error: GROQ_API_KEY not found. Please set it in your environment variables or pass it as a parameter."
+    if openai_api_key is None:
+        openai_api_key = os.getenv('OPENAI_API_KEY')
+        if not openai_api_key:
+            return "Error: OPENAI_API_KEY not found. Please set it in your environment variables or pass it as a parameter."
     
-    # Initialize Groq client
-    client = Groq(api_key=groq_api_key)
+    # Initialize OpenAI client
+    client = OpenAI(api_key=openai_api_key)
     
     rubric_prompt = """
 You are an expert evaluator. A student has written a response to the prompt:
@@ -45,7 +45,6 @@ you are speaking to the student , so never use "the student's response".
 9. Relevant to the Idea – Does the content stay focused on the idea and its value?
 10. Info is Well-Structured and Easy to Understand – Is the writing organized and clear?
 
-assign a score from 1 to 10 for each point, where 1 is poor and 10 is excellent. Provide specific feedback for each point, including suggestions for improvement if necessary.
 
 Return the feedback in a numbered format.
 """
@@ -58,7 +57,7 @@ Return the feedback in a numbered format.
     full_prompt = rubric_prompt + "\n\nStudent Response:\n" + marketfit.strip()
     
     try:
-        # Make API call to Groq
+        # Make API call to OpenAI
         chat_completion = client.chat.completions.create(
             messages=[
                 {
@@ -66,7 +65,12 @@ Return the feedback in a numbered format.
                     "content": full_prompt,
                 }
             ],
-            model="llama3-8b-8192",  # You can change this to other Groq models like "mixtral-8x7b-32768"
+            model="gpt-4.1",
+            temperature=0.7,
+            max_tokens=2048,
+            top_p=0.9,
+            presence_penalty=0.1,
+            frequency_penalty=0.1
         )
         
         return chat_completion.choices[0].message.content
@@ -77,8 +81,8 @@ Return the feedback in a numbered format.
 
 # Example usage:
 if __name__ == "__main__":  
-    # API key will be loaded from environment variable GROQ_API_KEY
-    # Make sure to create a .env file with: GROQ_API_KEY=your-actual-api-key
+    # API key will be loaded from environment variable OPENAI_API_KEY
+    # Make sure to create a .env file with: OPENAI_API_KEY=your-actual-api-key
     
     # Example student response
     student_response = """

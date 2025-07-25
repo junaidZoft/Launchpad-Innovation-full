@@ -1,7 +1,7 @@
 """
-Problem Statement Classifier - Optimized Groq Version
+Problem Statement Classifier - Optimized OpenAI Version
 
-A high-performance classifier for evaluating student problem statements using Groq API.
+A high-performance classifier for evaluating student problem statements using OpenAI's GPT-4.1 API.
 Optimized for speed with comprehensive error handling, caching, and batch processing.
 """
 
@@ -20,11 +20,11 @@ import aiohttp
 from contextlib import asynccontextmanager
 
 try:
-    from groq import Groq, AsyncGroq
+    from openai import OpenAI, AsyncOpenAI
 except ImportError as e:
     raise ImportError(
-        "Groq library not found. "
-        "Install with: pip install groq python-dotenv aiohttp"
+        "OpenAI library not found. "
+        "Install with: pip install openai python-dotenv aiohttp"
     ) from e
 
 try:
@@ -87,10 +87,10 @@ class ContentLevel(Enum):
 
 class OptimizedProblemStatementClassifier:
     """
-    High-performance classifier using Groq API for fast inference.
+    High-performance classifier using OpenAI's GPT-4.1 for fast and accurate inference.
     
     Features:
-    - Ultra-fast Groq API integration
+    - Ultra-fast GPT-4.1 integration
     - Advanced caching with TTL
     - Batch processing with connection pooling
     - Optimized prompt templates
@@ -98,18 +98,15 @@ class OptimizedProblemStatementClassifier:
     - Async/await support throughout
     """
     
-    # Available Groq models (optimized for speed)
+    # Available OpenAI models (optimized for this use case)
     FAST_MODELS = [
-        "llama3-70b-8192",      # Fastest, high quality
-        "llama3-8b-8192",       # Very fast, good quality
-        "mixtral-8x7b-32768",   # Good balance
-        "gemma-7b-it",          # Lightweight
+        "gpt-4.1",    # Only available model
     ]
     
     def __init__(
         self,
         api_key: Optional[str] = None,
-        model_name: str = "llama3-70b-8192",  # Default to fastest model
+        model_name: str = "gpt-4.1",  # Default to fastest model
         max_retries: int = 2,  # Reduced retries for speed
         timeout: float = 15.0,  # Reduced timeout
         enable_caching: bool = True,
@@ -119,7 +116,7 @@ class OptimizedProblemStatementClassifier:
         max_concurrent: int = 10  # For batch processing
     ):
         """Initialize the optimized classifier."""
-        self.api_key = api_key or os.getenv("GROQ_API_KEY")
+        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         self.model_name = model_name
         self.max_retries = max_retries
         self.timeout = timeout
@@ -138,9 +135,9 @@ class OptimizedProblemStatementClassifier:
         # Validate configuration
         self._validate_configuration()
         
-        # Initialize Groq clients
-        self.client = Groq(api_key=self.api_key)
-        self.async_client = AsyncGroq(api_key=self.api_key)
+        # Initialize OpenAI clients
+        self.client = OpenAI(api_key=self.api_key)
+        self.async_client = AsyncOpenAI(api_key=self.api_key)
         
         # Initialize cache with TTL
         self._cache = {}
@@ -168,10 +165,10 @@ class OptimizedProblemStatementClassifier:
         """Validate configuration parameters."""
         if not self.api_key:
             raise ConfigurationError(
-                "GROQ_API_KEY not found. Set it as an environment variable or pass it directly."
+                "OPENAI_API_KEY not found. Set it as an environment variable or pass it directly."
             )
         
-        if len(self.api_key.strip()) < 10:
+        if len(self.api_key.strip()) < 40:  # OpenAI keys are longer
             raise ConfigurationError("API key appears to be invalid (too short)")
         
         if self.model_name not in self.FAST_MODELS:
@@ -493,7 +490,7 @@ Provide ONLY the JSON output with the two required categories.
             return False, {}, f"Response parsing error: {str(e)}"
     
     async def _make_api_call_async(self, prompt: str) -> Tuple[str, Dict[str, Any]]:
-        """Make async API call to Groq."""
+        """Make async API call to OpenAI."""
         try:
             response = await self.async_client.chat.completions.create(
                 model=self.model_name,
@@ -503,6 +500,7 @@ Provide ONLY the JSON output with the two required categories.
                 ],
                 temperature=0.1,  # Low for consistency
                 max_tokens=1000,
+                response_format={"type": "json_object"},
                 top_p=0.9,
                 frequency_penalty=0.1,
                 presence_penalty=0.1
@@ -517,10 +515,10 @@ Provide ONLY the JSON output with the two required categories.
             return response.choices[0].message.content, usage_info
             
         except Exception as e:
-            raise APIError(f"Groq API call failed: {str(e)}")
+            raise APIError(f"OpenAI API call failed: {str(e)}")
     
     def _make_api_call_sync(self, prompt: str) -> Tuple[str, Dict[str, Any]]:
-        """Make synchronous API call to Groq."""
+        """Make synchronous API call to OpenAI."""
         try:
             response = self.client.chat.completions.create(
                 model=self.model_name,
@@ -530,6 +528,7 @@ Provide ONLY the JSON output with the two required categories.
                 ],
                 temperature=0.1,
                 max_tokens=1000,
+                response_format={"type": "json_object"},
                 top_p=0.9,
                 frequency_penalty=0.1,
                 presence_penalty=0.1
@@ -727,7 +726,7 @@ Provide ONLY the JSON output with the two required categories.
 def create_fast_classifier(api_key: Optional[str] = None, **kwargs) -> OptimizedProblemStatementClassifier:
     """Create a classifier optimized for speed."""
     defaults = {
-        'model_name': 'llama3-8b-8192',  # Fastest model
+        'model_name': 'gpt-4.1',  # Only available model
         'max_retries': 2,
         'timeout': 10.0,
         'cache_size': 512,
@@ -738,9 +737,9 @@ def create_fast_classifier(api_key: Optional[str] = None, **kwargs) -> Optimized
 
 
 def create_balanced_classifier(api_key: Optional[str] = None, **kwargs) -> OptimizedProblemStatementClassifier:
-    """Create a classifier with balanced speed and quality."""
+    """Create a classifier with standard settings."""
     defaults = {
-        'model_name': 'llama3-70b-8192',  # Good balance
+        'model_name': 'gpt-4.1',  # Only available model
         'max_retries': 2,
         'timeout': 15.0,
         'cache_size': 256,

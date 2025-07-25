@@ -2,7 +2,7 @@ import os
 import json
 import logging
 from typing import List, Dict, Any, Optional
-from groq import Groq
+from openai import OpenAI
 from dotenv import load_dotenv
 
 # Configure logging
@@ -17,11 +17,11 @@ load_dotenv()
 
 def generate_sdg_ideas_json(
     selected_sdgs: List[str],
-    model: str = 'llama3-8b-8192',
+    model: str = 'gpt-4.1',
     max_retries: int = 3
 ) -> Optional[List[Dict[str, Any]]]:
     """
-    Generates innovative project ideas for selected SDGs using the Groq API
+    Generates innovative project ideas for selected SDGs using the OpenAI API
     and returns them as a JSON object (Python list of dictionaries).
 
     Args:
@@ -33,12 +33,12 @@ def generate_sdg_ideas_json(
         A list of dictionaries, where each dictionary represents a project idea,
         or None if the generation fails.
     """
-    api_key = os.getenv("GROQ_API_KEY")
+    api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        logger.error("GROQ_API_KEY not found. Please set it in your .env file.")
+        logger.error("OPENAI_API_KEY not found. Please set it in your .env file.")
         return None
 
-    client = Groq(api_key=api_key)
+    client = OpenAI(api_key=api_key)
 
     # Optimized prompt to request a JSON response
     prompt = f"""
@@ -65,7 +65,7 @@ def generate_sdg_ideas_json(
 
     for attempt in range(max_retries):
         try:
-            logger.info(f"Attempt {attempt + 1}: Generating project ideas for SDGs: {selected_sdgs}")
+            logger.info(f"Attempt {attempt + 1}: Generating project ideas using OpenAI for SDGs: {selected_sdgs}")
             
             chat_completion = client.chat.completions.create(
                 messages=[
@@ -78,8 +78,9 @@ def generate_sdg_ideas_json(
                 temperature=0.7,
                 max_tokens=2048,
                 top_p=1,
-                stop=None,
-                response_format={"type": "json_object"}, # Use JSON mode if supported by model/API
+                response_format={"type": "json_object"},
+                presence_penalty=0.1,
+                frequency_penalty=0.1
             )
             
             response_text = chat_completion.choices[0].message.content

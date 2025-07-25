@@ -1,7 +1,7 @@
 import os
 import json
 import re
-from groq import Groq
+from openai import OpenAI
 from dotenv import load_dotenv
 
 
@@ -111,12 +111,12 @@ dont mention the index of the categories, just return the category name.
 
 '''
 
-def evaluate_market_fit_with_groq(submission_text: str) -> dict:
-    api_key = os.getenv("GROQ_API_KEY")
+def evaluate_market_fit_with_openai(submission_text: str) -> dict:
+    api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        return {"error": "Missing GROQ_API_KEY in .env"}
+        return {"error": "Missing OPENAI_API_KEY in .env"}
 
-    client = Groq(api_key=api_key)
+    client = OpenAI(api_key=api_key)
 
     x_axis_list = "\n".join([f"{i+1}. {item}" for i, item in enumerate(X_AXIS_CATEGORIES)])
     y_axis_list = "\n".join([f"{i+1}. {item}" for i, item in enumerate(Y_AXIS_CATEGORIES)])
@@ -129,13 +129,14 @@ def evaluate_market_fit_with_groq(submission_text: str) -> dict:
 
     try:
         response = client.chat.completions.create(
-            model="llama3-8b-8192",
+            model="gpt-4.1",
             messages=[
                 {"role": "system", "content": "You are a specialized assessment agent. Return only valid JSON."},
                 {"role": "user", "content": prompt}
             ],
             temperature=0.1,
-            max_tokens=300
+            max_tokens=300,
+            response_format={ "type": "json_object" }
         )
 
         raw = response.choices[0].message.content.strip()
@@ -157,7 +158,7 @@ if __name__ == "__main__":
     try:
         print("Starting market fit evaluation...", flush=True)
         submission = "my product is useful in rural areas for making them solar powered and internet free. It is a solar powered internet device that can be used in rural areas to provide internet access and solar power. It is designed to be affordable and easy to use, making it accessible to people in rural areas who may not have access to traditional internet services or electricity."
-        result = evaluate_market_fit_with_groq(submission)
+        result = evaluate_market_fit_with_openai(submission)
         print("Result:", flush=True)
         print(result, flush=True)
     except Exception as e:
